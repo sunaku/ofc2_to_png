@@ -190,7 +190,7 @@ __END__
 
       $(function() {
         for (var i = 0; i < #{THREADS}; i++) {
-          process_next_chart();
+          setTimeout(process_next_chart, i * 3); // stagger the threads in time
         }
       });
 
