@@ -122,47 +122,56 @@ __END__
 
       .chart{:url => chart_url, :num => num}
         .flash{:id => chart_id}
-          :javascript
-            swfobject.embedSWF(
-              'open-flash-chart.swf',
-              #{chart_id.inspect},
-              #{WIDTH}, #{HEIGHT},
-              '9.0.0', false,
-              {'data-file': #{chart_url.inspect} }
-            );
+          = "Chart #{num}: #{FILES[num]}"
 
     :javascript
-      function start() {
-        // wait until all swfobject instances take effect
-        if ($('.flash').length == 0) {
-          setTimeout(function() {
+      var chart = null;
 
-            // rasterize and upload all charts
-            $('.chart').each(function() {
-              var chart = $(this);
-              var image = null;
+      // render the next available chart
+      function render() {
+        chart = $('.chart:first');
 
-              try {
-                var flash = $('object', chart).get(0);
-                image = flash.get_img_binary();
-              }
-              catch(error) {
-                $.post('/error', {'error': error, 'num': chart.attr('num')});
-              }
+        if (chart.length) {
+          var flash = $('.flash', chart);
 
-              $.post(chart.attr('url'), {'image': image});
-              chart.remove();
-            });
-
-            $('body').text('You may close this window now.');
-            $.get('/end'); // notify server about completion
-
-          }, 7000); // wait for chart animations to finish
+          // instantiate the flash chart
+          swfobject.embedSWF(
+            'open-flash-chart.swf',
+            flash.attr('id'),
+            #{WIDTH}, #{HEIGHT},
+            '9.0.0', false,
+            {'data-file': chart.attr('url')}
+          );
         }
         else {
-          setTimeout(start, 2500);
+          $('body').text('You may close this window now.');
+          $.get('/end'); // end loop: notify server about completion
         }
       }
 
-      $(start);
+      // OFC2 callback for the flash chart instantiated in render()
+      function ofc_ready() {
+        // wait for chart animations to settle before rasterizing
+        setTimeout(raster, 1000);
+      }
+
+      // rasterize and upload the current chart
+      function raster() {
+        var flash = $('[id^=chart_]', chart).get(0);
+        var image = null;
+
+        try {
+          image = flash.get_img_binary();
+        }
+        catch(error) {
+          $.post('/error', {'error': error, 'num': chart.attr('num')});
+        }
+
+        $.post(chart.attr('url'), {'image': image}, function() {
+          chart.remove(); // complete => check completion or do render
+          render(); // continue loop: render the next chart
+        });
+      }
+
+      $(render); // begin loop: render the first chart
 
