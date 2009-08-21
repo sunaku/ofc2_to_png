@@ -188,7 +188,7 @@ __END__
         if (next_chart.length) {
           process_chart(next_chart);
         }
-        else {
+        else if ($('.chart').length == 0) {
           $('body').text('You may close this window now.');
           $.get('/end'); // notify server about completion
         }
