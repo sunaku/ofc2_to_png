@@ -36,6 +36,7 @@ require 'rubygems'
 require 'sinatra'
 require 'haml'
 
+
 ERRORS = []
 
 raise 'not enough arguments' if ARGV.length < 5
@@ -47,23 +48,21 @@ port = TCPServer.open('') {|s| s.addr[1] }
 set :port, port
 
 # launch the browser in subprocess
-BROWSER_PID = Thread.new do
-  sleep 3 # wait for the web server to start
-  IO.popen("#{BROWSER} http://#{host}:#{port}/").pid
-end.value
+BROWSER_PID = IO.popen("#{BROWSER} http://#{host}:#{port}/").pid
+
 
 get '/' do
-  haml :index
+  haml :index # see bottom of this file
 end
 
 # send JSON chart description from filesystem to flash
-get '/chart/:num' do |num|
-  send_file FILES[num.to_i]
+get '/chart/:id' do |id|
+  send_file FILES[id.to_i]
 end
 
 # save image data posted from flash to filesystem
-post '/chart/:num' do |num|
-  image_file = FILES[num.to_i] + '.png'
+post '/chart/:id' do |id|
+  image_file = FILES[id.to_i] + '.png'
   image_data = Base64.decode64(params[:image])
 
   open(image_file, 'wb') {|f| f << image_data }
@@ -73,7 +72,7 @@ end
 
 # display flash errors and propagate exit status
 post '/error' do
-  file = FILES[params[:num].to_i]
+  file = FILES[params[:id].to_i]
   error = params[:error]
   ERRORS << error
 
@@ -102,27 +101,24 @@ __END__
     %script{:type => 'text/javascript', :src => 'swfobject-2.2.min.js'}
     %script{:type => 'text/javascript', :src => 'jquery-1.3.2.min.js'}
   %body
-    - FILES.length.times do |num|
-      - chart_id = "chart_#{num}"
-      - chart_url = "/chart/#{num}"
+    - FILES.each_with_index do |file, id|
+      .chart{:id => id, :url => "/chart/#{id}", :pending => true}
+        = "Chart #{id}: #{file}"
 
-      .chart{:url => chart_url, :num => num, :pending => true}
-        = "Chart #{num}: #{FILES[num]}"
-
-        - # placeholder for the flash applet
-        .flash{:id => chart_id}
+        .flash_placeholder{:id => "flash_placeholder_#{id}"}
 
     :javascript
       function process_chart(chart) {
-        chart.removeAttr('pending').css('font-weight', 'bold');
+        // visually indicate that this chart is being processed
+        chart.css({'font-weight': 'bold', 'color': 'red'});
 
         //
         // instantiate the flash applet
         //
-        var flash = $('.flash', chart);
+        var placeholder_id = $('.flash_placeholder', chart).attr('id');
 
         swfobject.embedSWF(
-          'open-flash-chart.swf', flash.attr('id'), #{WIDTH}, #{HEIGHT},
+          'open-flash-chart.swf', placeholder_id, #{WIDTH}, #{HEIGHT},
           '9.0.0', false, {'data-file': chart.attr('url')}, false, false,
           function(event) {
             var flash = event.ref;
@@ -132,8 +128,8 @@ __END__
             //
             $(flash).css({
               position: 'absolute',
-              top: -#{HEIGHT.to_i + 10},
-              left: -#{WIDTH.to_i + 10}
+              left: '-#{WIDTH.to_i + 10}px',
+              top: '-#{HEIGHT.to_i + 10}px'
             });
 
             //
@@ -150,7 +146,7 @@ __END__
                   curr_sample = flash.get_img_binary();
                 }
                 catch(error) {
-                  $.post('/error', {'error': error, 'num': chart.attr('num')});
+                  $.post('/error', {'error': error, 'id': chart.attr('id')});
                 }
 
                 if (prev_sample == curr_sample) {
@@ -163,7 +159,7 @@ __END__
                     $.post(chart.attr('url'), {'image': curr_sample});
 
                     chart.remove();
-                    process_next_chart();
+                    process_next_chart(); // continue this thread
 
                     return;
                   }
@@ -185,16 +181,23 @@ __END__
 
       function process_next_chart() {
         var next_chart = $('.chart[pending]:first');
+
         if (next_chart.length) {
-          process_chart(next_chart);
+          process_chart(next_chart.removeAttr('pending'));
         }
         else if ($('.chart').length == 0) {
+          //
+          // all charts have been processed now
+          //
           $('body').text('You may close this window now.');
           $.get('/end'); // notify server about completion
         }
       }
 
       $(function() {
+        //
+        // bootstrap the processing threads
+        //
         for (var i = 0; i < #{THREADS}; i++) {
           setTimeout(process_next_chart, i * 3); // stagger the threads in time
         }
