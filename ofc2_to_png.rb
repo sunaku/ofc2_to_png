@@ -21,7 +21,7 @@
 #
 # = Requirements
 #
-#   gem install sinatra haml json
+#   gem install sinatra haml
 #
 #--
 # Copyright protects this work.
@@ -32,33 +32,11 @@ require 'base64'
 require 'rubygems'
 require 'sinatra'
 require 'haml'
-require 'json'
 
 ERRORS = []
 
 raise 'not enough arguments' if ARGV.length < 4
 BROWSER, WIDTH, HEIGHT, *FILES = ARGV
-
-# load the OFC2 chart description files
-JSONS = FILES.map do |file|
-  json = File.read(file)
-
-  begin
-    data = JSON.parse(json)
-
-    # disable all animation in the chart
-    if elements = data['elements']
-      elements.each do |elem|
-        elem['animate'] = false
-      end
-    end
-
-    data.to_json
-
-  rescue JSON::ParserError, JSON::GeneratorError
-    json # use the original JSON read from the file
-  end
-end
 
 # launch the browser as a subprocess
 BROWSER_PID = Thread.new do
@@ -72,7 +50,7 @@ end
 
 # send JSON chart description from filesystem to flash
 get '/chart/:num' do |num|
-  JSONS[num.to_i]
+  send_file FILES[num.to_i]
 end
 
 # save image data posted from flash to filesystem
@@ -127,8 +105,8 @@ __END__
     :javascript
       var chart = null;
 
-      // render the next available chart
-      function render() {
+      // instantiate the next flash chart
+      function setup() {
         chart = $('.chart:first');
 
         if (chart.length) {
@@ -151,27 +129,60 @@ __END__
 
       // OFC2 callback for the flash chart instantiated in render()
       function ofc_ready() {
-        // wait for chart animations to settle before rasterizing
-        setTimeout(raster, 1000);
+        var flash = $('[id^=chart_]', chart).get(0);
+
+        flash.render = function() {
+          try {
+            return this.get_img_binary();
+          }
+          catch(error) {
+            $.post('/error', {'error': error, 'num': chart.attr('num')});
+            return null;
+          }
+        }
+
+        //
+        // wait until the chart animation settles
+        //
+        var SAMPLE_DELAY = 250, MIN_STABLE_SAMPLES = 3;
+        var prev_sample = null, num_stable_samples = 0;
+
+        function wait_for_stability() {
+          var curr_sample = flash.render();
+
+          if (prev_sample == curr_sample) {
+            num_stable_samples++;
+
+            if (num_stable_samples >= MIN_STABLE_SAMPLES) {
+              num_stable_samples = 0;
+              upload(curr_sample);
+              return;
+            }
+          }
+          else {
+            num_stable_samples = 0;
+          }
+
+          prev_sample = curr_sample;
+          setTimeout(wait_for_stability, SAMPLE_DELAY); // loop
+        }
+
+        wait_for_stability();
       }
 
-      // rasterize and upload the current chart
-      function raster() {
-        var flash = $('[id^=chart_]', chart).get(0);
-        var image = null;
-
-        try {
-          image = flash.get_img_binary();
-        }
-        catch(error) {
-          $.post('/error', {'error': error, 'num': chart.attr('num')});
-        }
-
-        $.post(chart.attr('url'), {'image': image}, function() {
-          chart.remove(); // complete => check completion or do render
-          render(); // continue loop: render the next chart
+      // uploads the given image data to the
+      // server and proceeds to the next chart
+      function upload(image_data) {
+        $.ajax({
+          type: 'POST',
+          url: chart.attr('url'),
+          data: {'image': image_data},
+          complete: function() {
+            chart.remove();
+            setup(); // continue loop: render the next chart
+          }
         });
       }
 
-      $(render); // begin loop: render the first chart
+      $(setup); // begin loop: render the first chart
 
