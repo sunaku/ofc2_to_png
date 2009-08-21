@@ -42,7 +42,8 @@ raise 'not enough arguments' if ARGV.length < 5
 BROWSER, THREADS, WIDTH, HEIGHT, *FILES = ARGV
 
 # start server on random port number
-host, port = TCPServer.open('') {|s| s.addr.values_at(3, 1) }
+host = '127.0.0.1'
+port = TCPServer.open('') {|s| s.addr[1] }
 set :port, port
 
 # launch the browser in subprocess
