@@ -30,6 +30,7 @@
 # See LICENSE file for details.
 #++
 
+require 'socket'
 require 'base64'
 require 'rubygems'
 require 'sinatra'
@@ -40,10 +41,14 @@ ERRORS = []
 raise 'not enough arguments' if ARGV.length < 5
 BROWSER, THREADS, WIDTH, HEIGHT, *FILES = ARGV
 
-# launch the browser as a subprocess
+# start server on random port number
+host, port = TCPServer.open('') {|s| s.addr.values_at(3, 1) }
+set :port, port
+
+# launch the browser in subprocess
 BROWSER_PID = Thread.new do
   sleep 3 # wait for the web server to start
-  IO.popen("#{BROWSER} http://127.0.0.1:4567/").pid
+  IO.popen("#{BROWSER} http://#{host}:#{port}/").pid
 end.value
 
 get '/' do
