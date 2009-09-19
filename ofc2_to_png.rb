@@ -47,8 +47,15 @@ host = '127.0.0.1'
 port = TCPServer.open('') {|s| s.addr[1] }
 set :port, port
 
-# launch the browser in subprocess
-BROWSER_PID = IO.popen("#{BROWSER} http://#{host}:#{port}/").pid
+# launch web browser in subprocess
+Thread.new do
+  puts url = "http://#{host}:#{port}/"
+
+  # wait for server to become ready
+  Thread.pass until system 'curl', '-Is', url
+
+  @browser_pid = IO.popen("#{BROWSER} #{url}").pid
+end
 
 # search relative to this file for static assets
 set :root, File.dirname(__FILE__)
@@ -86,9 +93,9 @@ end
 # close the browser and terminate this program
 get '/end' do
   begin
-    Process.kill :SIGTERM, BROWSER_PID
+    Process.kill :SIGTERM, @browser_pid
   rescue => e
-    warn "Could not kill the browser process (pid=#{BROWSER_PID}) with SIGTERM because #{e.inspect}; you must kill it by hand instead."
+    warn "Could not kill the browser process (pid=#{@browser_pid}) with SIGTERM because #{e.inspect}; you must kill it by hand instead."
   end
 
   exit! [255, ERRORS.length].min
