@@ -50,9 +50,12 @@ set :port, port
 # launch the browser in subprocess
 BROWSER_PID = IO.popen("#{BROWSER} http://#{host}:#{port}/").pid
 
+# search relative to this file for static assets
+set :root, File.dirname(__FILE__)
 
+# send initial web page which bootstraps the flash to image conversion process
 get '/' do
-  haml :index # see bottom of this file
+  haml :index # see bottom of this file, below __END__
 end
 
 # send JSON chart description from filesystem to flash
