@@ -167,11 +167,12 @@ __END__
                     //
                     // chart is stable now, we can render & upload
                     //
-                    $.post(chart.attr('url'), {'image': curr_sample});
+                    $.post(
+                      chart.attr('url'), {'image': curr_sample},
+                      process_next_chart // continue this thread
+                    );
 
                     chart.remove();
-                    process_next_chart(); // continue this thread
-
                     return;
                   }
                 }
