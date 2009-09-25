@@ -30,16 +30,19 @@
 # See LICENSE file for details.
 #++
 
+# show help information
+if ARGV.any? {|a| a =~ /^-h|--help$/ } or ARGV.length < 5
+  puts File.read(__FILE__).split(/^$/).first
+  exit
+end
+
 require 'socket'
 require 'base64'
 require 'rubygems'
 require 'sinatra'
 require 'haml'
 
-
 ERRORS = []
-
-raise 'not enough arguments' if ARGV.length < 5
 BROWSER, THREADS, WIDTH, HEIGHT, *FILES = ARGV
 
 # start server on random port number
