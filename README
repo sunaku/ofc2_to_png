@@ -1,0 +1,8 @@
+Converts Open Flash Chart 2 <http://teethgrinder.co.uk/open-flash-chart-2/>
+chart description files (which are written in JSON format) into PNG images.
+
+This tool is designed for automation.  It can be run from a CRON job or
+shell script---even in a headless environment (where a graphical display
+is absent) as the "ofc2_to_png_headless.sh" shell script demonstrates.
+
+To see help and usage information, run the `ruby ofc2_to_png.rb` command.

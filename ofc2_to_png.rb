@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 #
-# Renders OFC2 chart description files as PNG images.
+# Converts Open Flash Chart 2 <http://teethgrinder.co.uk/open-flash-chart-2/>
+# chart description files (which are written in JSON format) into PNG images.
 #
 # = Usage
 #
