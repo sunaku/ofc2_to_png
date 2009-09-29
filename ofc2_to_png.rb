@@ -71,7 +71,7 @@ end
 # search relative to this file for static assets
 set :root, File.dirname(__FILE__)
 
-# send initial web page which bootstraps the flash to image conversion process
+# send initial web page to start the conversion process
 get '/' do
   haml :index # see bottom of this file, below __END__
 end
