@@ -78,7 +78,10 @@ end
 
 # send JSON chart description from filesystem to flash
 get '/chart/:id' do |id|
-  send_file FILES[id.to_i]
+  File.read(FILES[id.to_i]).
+
+  # omit animations before serving to flash
+  gsub(/(['"]?)on-show\1\s*:\s*\{.*?\}\s*,?/m, '')
 end
 
 # save image data posted from flash to filesystem
