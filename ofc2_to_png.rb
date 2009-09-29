@@ -173,10 +173,12 @@ __END__
                     //
                     $.post(
                       chart.attr('url'), {'image': curr_sample},
-                      process_next_chart // continue this thread
+                      function() {
+                        chart.remove();
+                        process_next_chart(); // continue this thread
+                      }
                     );
 
-                    chart.remove();
                     return;
                   }
                 }
