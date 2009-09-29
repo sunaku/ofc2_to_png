@@ -109,7 +109,9 @@ get '/end' do
     warn "Could not kill the browser process (pid=#{browser_pid}) with SIGTERM because #{e.inspect}; you must kill it by hand instead."
   end
 
-  exit! [255, ERRORS.length].min
+  status = [255, ERRORS.length].min
+  puts "EXIT: #{status}"
+  exit! status
 end
 
 __END__
