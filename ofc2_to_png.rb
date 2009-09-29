@@ -39,6 +39,7 @@ end
 
 require 'socket'
 require 'base64'
+require 'open-uri'
 require 'rubygems'
 require 'sinatra'
 require 'haml'
@@ -57,7 +58,12 @@ Thread.new do
   puts url = "http://#{host}:#{port}/"
 
   # wait for server to become ready
-  Thread.pass until system 'curl', '-Is', url
+  begin
+    open url
+  rescue
+    Thread.pass
+    retry
+  end
 
   browser_pid = IO.popen("#{BROWSER} #{url}").pid
 end
