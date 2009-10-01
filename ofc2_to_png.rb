@@ -159,31 +159,43 @@ __END__
             });
 
             //
-            // wait until the chart animation settles before rendering image
+            // wait for flash applet to initialize
             //
-            var SAMPLE_DELAY = 200, MIN_STABLE_SAMPLES = 3;
-            var prev_sample = null, num_stable_samples = 0;
-
-            function wait_for_stability() {
+            function wait_for_initialize() {
               if (flash.get_img_binary) {
-                var curr_sample = null;
+                var SAMPLE_DELAY = 200, MIN_STABLE_SAMPLES = 3;
+                var prev_sample = null, num_stable_samples = 0;
 
-                try {
-                  curr_sample = flash.get_img_binary();
-                }
-                catch(error) {
-                  $.post('/error', {'error': error, 'id': chart.attr('id')});
-                }
+                function wait_for_stability() {
+                  //
+                  // render chart image
+                  //
+                  var curr_sample = null;
 
-                if (prev_sample == curr_sample) {
-                  num_stable_samples++;
+                  try {
+                    curr_sample = flash.get_img_binary();
+                  }
+                  catch(error) {
+                    $.post('/error', {'error': error, 'id': chart.attr('id')});
+                  }
 
+                  if (prev_sample == curr_sample) {
+                    num_stable_samples++;
+                  }
+                  else {
+                    num_stable_samples = 0;
+                  }
+
+                  prev_sample = curr_sample;
+
+                  //
+                  // wait for chart animation to stabilize
+                  //
                   if (num_stable_samples >= MIN_STABLE_SAMPLES) {
                     //
-                    // chart is stable now, we can render & upload
+                    // upload image to server
                     //
-                    $.post(
-                      chart.attr('url'), {'image': curr_sample},
+                    $.post(chart.attr('url'), {'image': curr_sample},
                       function() {
                         chart.remove();
                         process_next_chart(); // continue this thread
@@ -192,18 +204,19 @@ __END__
 
                     return;
                   }
-                }
-                else {
-                  num_stable_samples = 0;
+
+                  setTimeout(wait_for_stability, SAMPLE_DELAY); // loop
                 }
 
-                prev_sample = curr_sample;
+                wait_for_stability();
               }
-
-              setTimeout(wait_for_stability, SAMPLE_DELAY); // loop
+              else {
+                setTimeout(wait_for_initialize,
+                           SAMPLE_DELAY * MIN_STABLE_SAMPLES); // loop
+              }
             }
 
-            wait_for_stability();
+            wait_for_initialize();
           }
         );
       }
